@@ -15,7 +15,7 @@ class TestPhase5(unittest.TestCase):
         self.sim.world.add_location("B", ["A", "C"])
         self.sim.world.add_location("C", ["B"])
         
-        self.food = Object(ObjectType.FOOD, 10, "C")
+        self.food = Object(type=ObjectType.FOOD, value=10, location_id="C")
         self.sim.world.add_entity(self.food)
         
     def tearDown(self):

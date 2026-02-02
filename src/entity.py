@@ -65,6 +65,9 @@ class Agent(Entity):
     # Phase 14: Social Learning
     last_action: Optional[Any] = None                                     # Most recent Action committed
 
+    # Phase 22: Emergent Specialization
+    skills: Dict[str, float] = field(default_factory=lambda: {"EXPLORE": 1.0, "EXTRACT": 1.0, "USE": 1.0})
+
     # Track the last tick updated to help with debugging/synchronization
     last_tick_updated: int = 0
 

@@ -260,6 +260,14 @@ class Simulation:
         if not effect.success:
             return
 
+        # Phase 22: Reward skill experience on success
+        if effect.action.type == ActionType.EXTRACT:
+            agent.skills["EXTRACT"] += 0.1
+        elif effect.action.type == ActionType.USE:
+            agent.skills["USE"] += 0.1
+        elif effect.action.type == ActionType.MOVE:
+            agent.skills["EXPLORE"] += 0.02 # Slower gain as movement is frequent
+
         # 2. Apply Location Change
         if effect.new_location_id:
             self.world.move_agent(effect.agent_id, effect.new_location_id)
