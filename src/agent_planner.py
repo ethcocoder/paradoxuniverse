@@ -57,6 +57,19 @@ class AgentPlanner:
                         rep = agent.social_reputations.get(requester, 0.0) # -2.0 to 2.0
                         priority += rep * 20 # Can go from 80 to 160
                     goal_metrics.append((priority, loc, "COOP_FOOD"))
+        
+        # Priority B0: Stale Frontiers (Phase 19)
+        # Re-visit areas we haven't seen in a while to refresh map
+        STALE_THRESHOLD = 50
+        current_tick = agent.last_tick_updated
+        for loc, data in map_data.items():
+            if loc == current_loc: continue
+            last_tick = data.get("last_tick", 0)
+            if current_tick - last_tick > STALE_THRESHOLD:
+                # Priority 45: Slightly lower than True Frontier (50)?
+                # Or higher? True Frontier is "Unknown potential". Stale is "Known update".
+                # Unknown is usually better for finding NEW resources. Stale is maintenance.
+                goal_metrics.append((45, loc, "STALE_FRONTIER"))
 
         # Priority B: Frontiers (Unvisited/Unmapped neighbors of known nodes)
         # Actually, "Unexplored" means we know it exists (neighbor) but have no entry for it in map?

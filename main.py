@@ -5,40 +5,38 @@ from src.agent_planner import AgentPlanner
 
 def main():
     # 1. Init Simulation
-    sim = Simulation(log_path="phase18_run.jsonl", seed=60)
+    sim = Simulation(log_path="phase19_run.jsonl", seed=70)
     
     # 2. Build World
-    sim.world.add_location("Camp", ["Path"])
-    sim.world.add_location("Path", ["Camp", "Forest"])
-    sim.world.add_location("Forest", ["Path"]) 
+    sim.world.add_location("LocA", ["LocB"])
+    sim.world.add_location("LocB", ["LocA", "LocC"])
+    sim.world.add_location("LocC", ["LocB"])
     
-    # 3. Add Agent (Hungry)
-    agent = Agent(name="Hunter", location_id="Camp", energy=40)
-    
-    # Pre-seed Map (Agent knows the layout)
-    agent.cognitive_map = {
-        "Camp": {"neighbors": ["Path"], "objects": []},
-        "Path": {"neighbors": ["Camp", "Forest"], "objects": []},
-        "Forest": {"neighbors": ["Path"], "objects": []}
-    }
-    
-    # Pre-seed Memory (Forest is good)
-    agent.spatial_patterns = {
-        "Forest": {"food_hits": 10, "total_visits": 10}, # 100%
-        "Path": {"food_hits": 0, "total_visits": 5}
-    }
-    
+    # 3. Add Agent
+    agent = Agent(name="Patroller", location_id="LocB", energy=100)
     sim.world.add_entity(agent)
     
+    # Pre-seed Map
+    agent.cognitive_map = {
+        "LocA": {"neighbors": ["LocB"], "objects": [], "last_tick": 0},
+        "LocB": {"neighbors": ["LocA", "LocC"], "objects": [], "last_tick": 50},
+        "LocC": {"neighbors": ["LocB"], "objects": [], "last_tick": 50}
+    }
+    
+    # Manually advance time to make LocA stale
+    sim.tick_count = 55
+    agent.last_tick_updated = 55
+    
     # 4. Run
-    print("Starting Phase 18 Verification Run (The Memory Hunter)...")
+    print("Starting Phase 19 Verification Run (The Patroller)...")
     
-    # Tick 0: Agent is hungry. No visible food.
-    # Planner should pick 'Forest' as LIKELY_REGION (Score 75).
-    # Plan: Move Path -> Move Forest.
+    # Tick 55: Agent is at LocB.
+    # LocA is stale (diff 55 > 50).
+    # LocC is fresh (diff 5).
+    # Decision: Move LocA.
     
-    sim.run(max_ticks=3, agent_controller=None) 
-    print("Run complete. Check phase18_run.jsonl")
+    sim.run(max_ticks=2, agent_controller=None) 
+    print("Run complete. Check phase19_run.jsonl")
 
 if __name__ == "__main__":
     main()
