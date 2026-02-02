@@ -38,6 +38,22 @@ class AgentMind:
                     "required": o.required_agents,
                     "value": o.value
                 })
+        
+        # Phase 20: Tools and Obstacles
+        visible_tools = []
+        visible_obstacles = []
+        for o in objects:
+            if o.type == ObjectType.TOOL:
+                visible_tools.append({
+                    "id": o.id,
+                    "tool_type": o.tool_type
+                })
+            elif o.type == ObjectType.OBSTACLE:
+                visible_obstacles.append({
+                    "id": o.id,
+                    "tool_required": o.tool_required
+                })
+        
         neighbors = world.get_neighbors(current_loc)
         
         # Phase 6: Perception of Agents
@@ -73,6 +89,8 @@ class AgentMind:
             "visible_food": visible_food,
             "visible_hazards": visible_hazards, # Phase 13
             "visible_coop_food": visible_coop_food, # Phase 15
+            "visible_tools": visible_tools, # Phase 20
+            "visible_obstacles": visible_obstacles, # Phase 20
             "neighbors": neighbors,
             "visited_neighbors": [n for n in neighbors if n in agent.visited_locations],
             "visible_agents": visible_agents, # Phase 6
@@ -93,12 +111,23 @@ class AgentMind:
         if visible_food: objs_list.append("FOOD")
         if visible_hazards: objs_list.append("HAZARD") # Phase 13
         if visible_coop_food: objs_list.append("COOP_FOOD") # Phase 15
+        if visible_tools: objs_list.append("TOOL") # Phase 20
+        if visible_obstacles: objs_list.append("OBSTACLE") # Phase 20
+        
+        # Store metadata for tools/obstacles (Phase 20)
+        obj_metadata = {}
+        if visible_tools:
+            obj_metadata["tools"] = visible_tools
+        if visible_obstacles:
+            obj_metadata["obstacles"] = visible_obstacles
         
         agent.cognitive_map[current_loc].update({
              "neighbors": neighbors,
              "objects": objs_list,
+             "metadata": obj_metadata,
              "last_tick": agent.last_tick_updated
-        })# Iterate visible agents and update social map
+        })
+# Iterate visible agents and update social map
         for va in visible_agents:
             AgentSocial.update_seen_agent(agent, va["id"], va)
             
@@ -219,6 +248,21 @@ class AgentMind:
             
         # --- 2. GOAL-BASED ACTION GENERATION ---
         
+        # --- PHASE 20: REACTIVE INTERACTION (PICKUP/USE) ---
+        # 1. Pickup required tools if they are here
+        if perception.get("visible_tools"):
+            tool_info = perception["visible_tools"][0]
+            # If we don't have this specific tool, pick it up
+            if not any(item.id == tool_info["id"] for item in agent.inventory):
+                 return Action(ActionType.PICKUP, target_id=tool_info["id"])
+
+        # 2. Use tool on obstacle if here and we have the requirement
+        if perception.get("visible_obstacles"):
+            for obs in perception["visible_obstacles"]:
+                required = obs.get("tool_required")
+                if not required or any(item.tool_type == required for item in agent.inventory):
+                     return Action(ActionType.USE, target_id=obs["id"])
+
         # A. SURVIVAL GOAL
         if active_goal.type == GoalType.SURVIVAL:
             # Plan to find food
@@ -251,17 +295,11 @@ class AgentMind:
             
             # If I'm carrying food and at home, drop it.
             if agent.inventory and perception["location"] == agent.home_location_id:
-                return Action(ActionType.DROP, target_id=agent.inventory[0].id)
+                # Only drop if it's FOOD (Phase 20 fix: don't drop tools we need!)
+                food_item = next((o for o in agent.inventory if o.type == ObjectType.FOOD), None)
+                if food_item:
+                    return Action(ActionType.DROP, target_id=food_item.id)
             
-            # If carrying food but NOT at home, move toward home? 
-            # (Simplified: if inventory > 0, planning should target home. 
-            # For now, let's just let it naturally wander or add a small bias)
-            if agent.inventory and agent.home_location_id:
-                # One-step bias: move toward home if possible
-                neighbors = perception["neighbors"]
-                if agent.home_location_id in neighbors:
-                    return Action(ActionType.MOVE, target_id=agent.home_location_id)
-
             new_plan = AgentPlanner.generate_plan(agent) # Planner finds frontiers
             if new_plan:
                 agent.plan_queue = new_plan

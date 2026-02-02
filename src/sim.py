@@ -275,3 +275,6 @@ class Simulation:
                     "object_id": effect.removed_object_id,
                     "participants": participants
                 })
+            elif effect.action.type == ActionType.USE:
+                self.world.remove_object(effect.removed_object_id)
+                self.logger.log(self.tick_count, "OBJECT_USED", {"agent_id": agent.id, "object_id": effect.removed_object_id})

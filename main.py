@@ -1,42 +1,56 @@
 from src.sim import Simulation
 from src.entity import Agent, Object, ObjectType
 from src.physics import Action, ActionType, Physics
-from src.agent_planner import AgentPlanner
 
 def main():
     # 1. Init Simulation
-    sim = Simulation(log_path="phase19_run.jsonl", seed=70)
+    sim = Simulation(log_path="phase20_run.jsonl", seed=80)
     
     # 2. Build World
-    sim.world.add_location("LocA", ["LocB"])
-    sim.world.add_location("LocB", ["LocA", "LocC"])
-    sim.world.add_location("LocC", ["LocB"])
+    sim.world.add_location("Entrance", ["Guardroom"])
+    sim.world.add_location("Guardroom", ["Entrance", "Vault"])
+    sim.world.add_location("Vault", ["Guardroom"])
+    
+    # Add Key
+    key = Object(id="Key", type=ObjectType.TOOL, tool_type="KEY", location_id="Guardroom")
+    sim.world.add_entity(key)
+    
+    # Add Chest
+    chest = Object(id="TreasureChest", type=ObjectType.OBSTACLE, tool_required="KEY", location_id="Vault")
+    sim.world.add_entity(chest)
     
     # 3. Add Agent
-    agent = Agent(name="Patroller", location_id="LocB", energy=100)
-    sim.world.add_entity(agent)
+    agent = Agent(name="Locksmith", location_id="Entrance", energy=100)
     
-    # Pre-seed Map
+    # Pre-seed Map so agent knows where things are
     agent.cognitive_map = {
-        "LocA": {"neighbors": ["LocB"], "objects": [], "last_tick": 0},
-        "LocB": {"neighbors": ["LocA", "LocC"], "objects": [], "last_tick": 50},
-        "LocC": {"neighbors": ["LocB"], "objects": [], "last_tick": 50}
+        "Entrance": {"neighbors": ["Guardroom"], "objects": [], "last_tick": 0},
+        "Guardroom": {
+            "neighbors": ["Entrance", "Vault"], 
+            "objects": ["TOOL"], 
+            "metadata": {"tools": [{"id": "Key", "tool_type": "KEY"}]},
+            "last_tick": 0
+        },
+        "Vault": {
+            "neighbors": ["Guardroom"], 
+            "objects": ["OBSTACLE"], 
+            "metadata": {"obstacles": [{"id": "TreasureChest", "tool_required": "KEY"}]},
+            "last_tick": 0
+        }
     }
     
-    # Manually advance time to make LocA stale
-    sim.tick_count = 55
-    agent.last_tick_updated = 55
+    sim.world.add_entity(agent)
     
     # 4. Run
-    print("Starting Phase 19 Verification Run (The Patroller)...")
+    print("Starting Phase 20 Verification Run (The Locksmith)...")
     
-    # Tick 55: Agent is at LocB.
-    # LocA is stale (diff 55 > 50).
-    # LocC is fresh (diff 5).
-    # Decision: Move LocA.
+    # Tick 0: At Entrance. Plan: [Move Guardroom, Move Vault]
+    # Tick 1: At Guardroom. Sees Key. PICKUP Key. Plan cleared.
+    # Tick 2: At Guardroom. Plan: [Move Vault]
+    # Tick 3: At Vault. Sees Chest+Have Key. USE Key.
     
-    sim.run(max_ticks=2, agent_controller=None) 
-    print("Run complete. Check phase19_run.jsonl")
+    sim.run(max_ticks=8, agent_controller=None) 
+    print("Run complete. Check phase20_run.jsonl")
 
 if __name__ == "__main__":
     main()

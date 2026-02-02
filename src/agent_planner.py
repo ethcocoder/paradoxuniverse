@@ -57,6 +57,41 @@ class AgentPlanner:
                         rep = agent.social_reputations.get(requester, 0.0) # -2.0 to 2.0
                         priority += rep * 20 # Can go from 80 to 160
                     goal_metrics.append((priority, loc, "COOP_FOOD"))
+                
+                # Phase 20: Obstacles and Tools
+                if "OBSTACLE" in data["objects"]:
+                    # Check metadata for what tool is needed
+                    obstacles = data.get("metadata", {}).get("obstacles", [])
+                    for obs in obstacles:
+                        required_tool_type = obs.get("tool_required")
+                        if not required_tool_type:
+                            goal_metrics.append((90, loc, "OBSTACLE"))
+                            continue
+
+                        # Do we have the tool?
+                        has_tool = any(item.tool_type == required_tool_type for item in agent.inventory)
+                        if has_tool:
+                            goal_metrics.append((110, loc, "OBSTACLE")) # High priority because we have the key!
+                        else:
+                            # Search map for the tool
+                            tool_loc = None
+                            for t_loc, t_data in map_data.items():
+                                tools = t_data.get("metadata", {}).get("tools", [])
+                                if any(t.get("tool_type") == required_tool_type for t in tools):
+                                    tool_loc = t_loc
+                                    break
+                            
+                            if tool_loc:
+                                # Goal: Get Tool
+                                if tool_loc == current_loc:
+                                    # We are here! PICKUP is handled in decide? 
+                                    # Actually planner returns ACTIONS.
+                                    # If we are at tool_loc, we need PICKUP.
+                                    # But generate_plan currently only returns MOVEs to targets.
+                                    # We should add logic for PICKUP if we are already at target.
+                                    goal_metrics.append((115, loc, "GET_TOOL"))
+                                else:
+                                    goal_metrics.append((115, tool_loc, "GET_TOOL")) # High priority to solve puzzle
         
         # Priority B0: Stale Frontiers (Phase 19)
         # Re-visit areas we haven't seen in a while to refresh map

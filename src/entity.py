@@ -74,6 +74,7 @@ class ObjectType(Enum):
     TOOL = auto()
     HAZARD = auto() # Phase 13: High-damage environmental static danger
     COOP_FOOD = auto() # Phase 15: Requires multiple agents to extract
+    OBSTACLE = auto() # Phase 20: Requires tool to bypass
 
 @dataclass
 class Object(Entity):
@@ -83,4 +84,8 @@ class Object(Entity):
     type: ObjectType = ObjectType.FOOD
     value: int = 0  # e.g., energy value for food
     location_id: str = ""
-    required_agents: int = 1 # Phase 15: Minimum agents for interaction
+    # Phase 15
+    required_agents: int = 1
+    # Phase 20
+    tool_required: Optional[str] = None # Name of tool type needed (e.g. "KEY")
+    tool_type: Optional[str] = None # If type is TOOL, this is the specific type name (e.g. "KEY")

@@ -12,6 +12,7 @@ class ActionType(Enum):
     PICKUP = auto() # Phase 12
     DROP = auto()   # Phase 12
     EXTRACT = auto() # Phase 15: Cooperative extraction
+    USE = auto()     # Phase 20: Tool use on Obstacles
 
 @dataclass
 class Action:
@@ -43,6 +44,7 @@ class Physics:
     PICKUP_COST = 2
     DROP_COST = 1
     EXTRACT_COST = 3 # Phase 15
+    USE_COST = 2     # Phase 20
     
     @staticmethod
     def get_valid_actions(world: World, agent: Agent) -> List[Action]:
@@ -97,6 +99,8 @@ class Physics:
             return Physics._rule_drop(world, agent, action.target_id)
         elif action.type == ActionType.EXTRACT:
             return Physics._rule_extract(world, agent, action.target_id)
+        elif action.type == ActionType.USE:
+            return Physics._rule_use(world, agent, action.target_id)
         elif action.type == ActionType.WAIT:
             return Effect(agent.id, action, success=True, energy_cost=0, message="Waited")
         
@@ -240,4 +244,52 @@ class Physics:
             energy_gain=obj.value, # Shared reward (Sim will handle if it's per agent or split)
             removed_object_id=target_obj_id,
             message=f"Successfully extracted {obj.id}"
+        )
+
+    @staticmethod
+    def _rule_use(world: World, agent: Agent, target_obj_id: str) -> Effect:
+        """
+        Rule for using tools on obstacles.
+        Requires the correct tool to be in the agent's inventory.
+        """
+        # 1. Check object exists
+        obj = world.get_entity(target_obj_id)
+        if not obj or not isinstance(obj, Object) or obj.location_id != agent.location_id:
+             return Effect(agent.id, Action(ActionType.USE, target_obj_id), success=False, message="Obstacle not found at location")
+
+        if obj.type != ObjectType.OBSTACLE:
+            return Effect(agent.id, Action(ActionType.USE, target_obj_id), success=False, message="Target is not a usable obstacle.")
+
+        # 2. Check energy
+        if agent.energy < Physics.USE_COST:
+             return Effect(agent.id, Action(ActionType.USE, target_obj_id), success=False, message="Not enough energy")
+
+        # 3. Check for required tool
+        required_tool = obj.tool_required
+        if not required_tool:
+            # If no tool is required, it works like a switch
+            return Effect(
+                agent_id=agent.id,
+                action=Action(ActionType.USE, target_obj_id),
+                success=True,
+                energy_cost=Physics.USE_COST,
+                removed_object_id=target_obj_id,
+                message=f"Used {target_obj_id}"
+            )
+
+        # Check inventory for a tool that matches the required_tool name/type
+        # We assume tool_type in the object matches the tool_required string of the obstacle
+        has_tool = any(item.type == ObjectType.TOOL and item.tool_type == required_tool for item in agent.inventory)
+        
+        if not has_tool:
+            return Effect(agent.id, Action(ActionType.USE, target_obj_id), success=False, message=f"Need a {required_tool} to use this.")
+
+        # 4. Success
+        return Effect(
+            agent_id=agent.id,
+            action=Action(ActionType.USE, target_obj_id),
+            success=True,
+            energy_cost=Physics.USE_COST,
+            removed_object_id=target_obj_id,
+            message=f"Successfully used tool on {obj.id}"
         )
