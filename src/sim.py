@@ -143,6 +143,25 @@ class Simulation:
                        all_agents = list(self.world.agents.values())
                        AgentCommunication.broadcast(self.world, agent, all_agents, payload, msg_type="HELP_CALL")
                        self.logger.log(self.tick_count, "HELP_CALL_SENT", {"sender": agent.id, "location": agent.location_id})
+                 elif target_id and target_id.startswith("PUZZLE_HELP:"):
+                       # Phase 21: Social Puzzle Help
+                       puzzle_id = target_id.split(":")[1]
+                       # Find puzzle metadata
+                       puzzle = self.world.get_entity(puzzle_id)
+                       payload = {
+                           "location_id": agent.location_id,
+                           "puzzle_id": puzzle_id,
+                           "metadata": {
+                               "obstacles": [{
+                                   "id": puzzle.id,
+                                   "tool_required": puzzle.tool_required,
+                                   "required_agents": puzzle.required_agents
+                               }]
+                           }
+                       }
+                       all_agents = list(self.world.agents.values())
+                       AgentCommunication.broadcast(self.world, agent, all_agents, payload, msg_type="PUZZLE_HELP")
+                       self.logger.log(self.tick_count, "PUZZLE_HELP_SENT", {"sender": agent.id, "location": agent.location_id, "puzzle": puzzle_id})
                  elif target_id.startswith("STORY:"):
                        # Phase 17: Gossip
                        real_target_id = target_id.split(":")[1]

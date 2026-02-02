@@ -266,6 +266,12 @@ class Physics:
 
         # 3. Check for required tool
         required_tool = obj.tool_required
+        
+        # Phase 21: Check for required agents
+        agents_here = [a for a in world.agents.values() if a.location_id == agent.location_id and a.is_alive]
+        if len(agents_here) < obj.required_agents:
+             return Effect(agent.id, Action(ActionType.USE, target_obj_id), success=False, message=f"Need {obj.required_agents} agents to use {obj.id}, only {len(agents_here)} present")
+
         if not required_tool:
             # If no tool is required, it works like a switch
             return Effect(

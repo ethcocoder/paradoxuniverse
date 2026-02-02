@@ -65,6 +65,25 @@ class AgentCommunication:
                     # Also boost reflection score to encourage going there
                     AgentMeta.update_score(agent, loc, 1.0)
             
+            # Phase 21: Handle PUZZLE_HELP
+            elif msg_type == "PUZZLE_HELP":
+                loc = payload.get("location_id")
+                trust = agent.trust_scores.get(sender_id, AgentSocial.INITIAL_TRUST)
+                if trust >= AgentSocial.INITIAL_TRUST and loc:
+                    # Update map to know obstacle is there
+                    if loc not in agent.cognitive_map:
+                         agent.cognitive_map[loc] = {"neighbors": [], "objects": []}
+                    if "OBSTACLE" not in agent.cognitive_map[loc]["objects"]:
+                         agent.cognitive_map[loc]["objects"].append("OBSTACLE")
+                    
+                    # Store requester and metadata (if any)
+                    agent.cognitive_map[loc]["requester_id"] = sender_id
+                    if "metadata" in payload:
+                         agent.cognitive_map[loc]["metadata"] = payload["metadata"]
+                    
+                    # Boost score to entice social goal
+                    AgentMeta.update_score(agent, loc, 1.5) # Even higher than food!
+            
             # Phase 17: Handle STORY
             elif msg_type == "STORY":
                 # Payload is a Story dict: {topic, location, tick, source, veracity}

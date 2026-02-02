@@ -51,7 +51,8 @@ class AgentMind:
             elif o.type == ObjectType.OBSTACLE:
                 visible_obstacles.append({
                     "id": o.id,
-                    "tool_required": o.tool_required
+                    "tool_required": o.tool_required,
+                    "required_agents": o.required_agents
                 })
         
         neighbors = world.get_neighbors(current_loc)
@@ -259,8 +260,23 @@ class AgentMind:
         # 2. Use tool on obstacle if here and we have the requirement
         if perception.get("visible_obstacles"):
             for obs in perception["visible_obstacles"]:
-                required = obs.get("tool_required")
-                if not required or any(item.tool_type == required for item in agent.inventory):
+                # Phase 21: Check for agent requirements
+                # We need to know 'required_agents' from perception? 
+                # Perception doesn't have it yet for obstacles. Let's fix that.
+                
+                required_agents = obs.get("required_agents", 1) # Default 1
+                agents_here = 1 + len([a for a in perception["visible_agents"] if a["distance"] == 0])
+                
+                if agents_here < required_agents:
+                     # Need help!
+                     if perception["energy"] > 20:
+                          # Broadcast help
+                          return Action(ActionType.COMMUNICATE, target_id=f"PUZZLE_HELP:{obs['id']}")
+                     # Wait for help
+                     return Action(ActionType.WAIT)
+
+                required_tool = obs.get("tool_required")
+                if not required_tool or any(item.tool_type == required_tool for item in agent.inventory):
                      return Action(ActionType.USE, target_id=obs["id"])
 
         # A. SURVIVAL GOAL
